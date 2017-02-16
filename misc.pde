@@ -1,3 +1,14 @@
+//This function creates a new bomb every bombFrames frame unless the previous one has not exploded
+void createNewBomb() {
+  if (b.exploded || b.pos.mag() > fightingZone) {
+    if (frameCount % bombFrames == 0) {
+      PVector r = PVector.random2D();
+      r.setMag(random(0.8)*fightingZone);
+      b = new Bomb(r, bombRadius);
+    }
+  }
+}
+
 //This function test if all zombie or humans are dead
 void testWinner() {
   count();
@@ -76,10 +87,13 @@ void drawTop10() {
 //this function draw the round (i.e it's the game)
 void drawRound() {
   background(30);
+  createNewBomb();
+  
   drawFightingZone();
   updateFightingZone();
 
   update();
+  b.show();
   show();
   drawScore();
   drawTop10();
@@ -108,10 +122,10 @@ void drawEndRound() {
   } else {
     textSize(40);
     textAlign(CENTER);
-    text("ALL HEROEZS DIED", 0, -50);
+    text("ALL HEROES DIED", 0, -50);
     text("ZOMBIES WON", 0, 50);
   }
-  
+
   if (startTimer) {
     timeStart = getSecond();
     wait = 0;
@@ -134,7 +148,9 @@ void drawEndRound() {
 void reset() {
   fightingZone = floor(0.8*width);
   actors = new ArrayList<Actor>();
-
+  PVector r = PVector.random2D();
+  r.setMag(random(0.8)*fightingZone);
+  b = new Bomb(r, bombRadius);
 
   int startActor = startCommon + startZombie + startHeroe;
   for (int i = 0; i < startActor; i++) {
@@ -193,6 +209,7 @@ void drawScore() {
   float humanRatio = cRatio + hRatio;
 
   noStroke();
+  rectMode(CORNER);
   fill(255, 0, 0);
   rect(-width/2, -height/2, zRatio*width, 20);
   fill(0, 255, 0);
@@ -269,6 +286,11 @@ void update() {
   }
   for (Actor a : actors) {
     a.update();
+    if (b.exploding == true && a.actorType!=1) {
+      if (b.insideRadius(a)) {
+        a.setType(-1);
+      }
+    }
   }
   findHeroes();
 }
@@ -277,5 +299,6 @@ void update() {
 void show() {
   for (Actor a : actors) {
     a.show();
+    b.walked(a);
   }
 }

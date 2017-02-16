@@ -4,7 +4,7 @@ import java.util.Arrays;
 
 ArrayList<Actor> actors =  new ArrayList<Actor>();
 ArrayList<Hero> heroes =  new ArrayList<Hero>();
-
+Bomb b;
 
 
 //Starting population
@@ -33,6 +33,9 @@ int scoreZ = 0;
 //Humans score
 int scoreH = 0;
 
+int bombFrames = 1000;
+int bombRadius = 150;
+
 boolean humansWin = false;
 int waitingTime = 10;
 int timeStart = 0;
@@ -49,6 +52,8 @@ void setup() {
 
 void draw() {
   translate(width/2, height/2);
+ 
+println(b.pos);
   if (!roundEnd) {
     drawRound();
   } else {
