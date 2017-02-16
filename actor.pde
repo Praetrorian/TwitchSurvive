@@ -1,43 +1,95 @@
 class Actor {
   PVector pos;
+  PVector prevPos;
   PVector dir;
   float speed;
   float distanceZ;
-  // 0:Common 1:Hero  2:Zombie
+  // 0:Common 1:Hero  2:Zombie 3:SuperZombie
   int actorType;  
 
+
+  //Heroes variables
+  String name;
   float shootDistance;
+  boolean dead = false;
   boolean shooting = false;
   int killingSpree = 0;
   int cooldown;
-  int shootingCooldown = 20;
+  int shootingCooldown = 15;
+  int maxCooldown = shootingCooldown;
+  int minCooldown = 8;
 
 
-  Actor(PVector pos0, PVector dir0, float s, int type) {
+  int radius = 0;
+  Actor(PVector pos0, PVector dir0, int type, String n) {
     pos = pos0;
+    prevPos = pos0;
     dir = dir0;
-    speed=s;
+
     actorType = type;
 
     switch(actorType) {
-    case 0 :
+    case 0 : //COMMON
       distanceZ = defaultZdistance;
+      speed = random(0.9, 1.1);
       break;
-    case 1 :
-      distanceZ = defaultZdistance;
+    case 1 : //HEROES
+      name = n;
+      distanceZ = defaultHdistance;
+      shootDistance = 25;
+      speed = random(1, 1.3);
       break;
-    case 2 :
+    case 2 : //ZOMBIES
       distanceZ = defaultDistance;
+      speed = random(1, 1.4);
       break;
     }
   }
-  void setType(int i){
-   actorType = i; 
+
+  Actor(PVector pos0, PVector dir0, int type) {
+    pos = pos0;
+    prevPos = pos0;
+    dir = dir0;
+
+    actorType = type;
+
+    switch(actorType) {
+    case 0 : //COMMON
+      distanceZ = defaultZdistance;
+      speed = random(0.9, 1.1);
+      break;
+    case 1 : //HEROES
+      distanceZ = defaultHdistance;
+      shootDistance = 25;
+      speed = random(1, 1.3);
+      break;
+    case 2 : //ZOMBIES
+      distanceZ = defaultDistance;
+      speed = random(1, 1.4);
+      break;
+    }
   }
+  
+  //method to set the actor's type
+  void setType(int i) {
+    actorType = i;
+  }
+  
+  //method to increase the actor's radius
+  void decreaseRadius() {
+    radius--;
+  }
+  
+  //method to decrease it
+  void increaseRadius() {
+    radius++;
+  }
+  
+  //this method fund the closest actor of this actor, depending on this actor type and the tested actor's type
   void findClosest(Actor z) {
     switch(actorType) {
     case 0 :  //if the actual actor is common
-      if (z.actorType == 2) {   //if the tested actor is a zombie FLEE
+      if (z.actorType == 2 || z.actorType == 3) {   //if the tested actor is a zombie FLEE
         if (PVector.dist(z.pos, pos) < distanceZ) {
           distanceZ = PVector.dist(z.pos, pos);
           dir = z.pos.copy().sub(pos.copy());
@@ -46,7 +98,7 @@ class Actor {
       }
       break;
     case 1 : // if the actual actor is a hero
-      if (z.actorType == 2) {  //if the tested is a zombie flee
+      if (z.actorType == 2 || z.actorType == 3) {  //if the tested is a zombie flee
         if (PVector.dist(z.pos, pos) < distanceZ) {
           distanceZ = PVector.dist(z.pos, pos);
           dir = z.pos.copy().sub(pos.copy());
@@ -55,12 +107,15 @@ class Actor {
         if (PVector.dist(z.pos, pos) < shootDistance) {  //if the zombie is close enough shoot
           if (shooting == false) {
             shoot(z);
-            z.setType(-1);
-            killingSpree ++;
+            z.decreaseRadius();
+            if (z.radius < 0) {
+              z.setType(-1);
+              killingSpree ++;
+            }
             cooldown = frameCount;
             shootingCooldown --;
-            if (shootingCooldown < 8)
-              shootingCooldown=8;
+            if (shootingCooldown < minCooldown)
+              shootingCooldown=minCooldown;
             shooting=true;
           } else {
             if (frameCount - cooldown > shootingCooldown) {
@@ -78,18 +133,41 @@ class Actor {
         }
       }
       break;
+    case 3 : //if the tested is a super zombie
+      if (z.actorType == 0 || z.actorType == 1) {
+        if (PVector.dist(z.pos, pos) < distanceZ) {
+          distanceZ = PVector.dist(z.pos, pos);
+          dir = z.pos.copy().sub(pos.copy());
+        }
+      }
+      break;
     }
   }
+  
+  //this method set this actor boolean dead to true
+  void setDead() {
+    dead = true;
+  }
+  
+  //this method make the actor turn at 180°
   void turnAround() {
     dir.mult(-1);
-    pos.add(dir.copy());
+    pos = prevPos;
+    //  pos.add(dir.copy());
   }
+  
+  //this method update the position, radius and direction of the actor
   void update() {
     dir.setMag(speed);
 
     dir.rotate(random(-PI/7, PI/7));  
+    prevPos = pos;
     pos.add(dir.copy());
-
+    if (radius == superZombieAmount) {
+      radius = 0;
+      speed *= superZombieRatio;
+      actorType = 3;
+    }
 
     edges();
     switch(actorType) {
@@ -102,9 +180,13 @@ class Actor {
     case 2 :
       distanceZ = defaultDistance;
       break;
+    case 3 :
+      distanceZ = defaultSZDistance;
+      break;
     }
   }
 
+  //this method show the actor depending on his type (color, radius, name)
   void show() {
     noStroke();
     switch(actorType) {
@@ -112,30 +194,43 @@ class Actor {
       fill(0, 255, 0);
       break;
     case 1 :
-      int h = floor(map(killingSpree, 0, 20, 0, 255));
+      int h = floor(map(killingSpree, 0, maxCooldown - minCooldown, 0, 255));
       fill(h, h, 255);
       break;
     case 2 :
       fill(255, 0, 0);
       break;
+    case 3 :
+      fill(40, 0, 0);
+      break;
     }
-
-    ellipse(pos.x, pos.y, 8, 8);
+    textAlign(CENTER);
+    ellipse(pos.x, pos.y, normalRadius + radius, normalRadius + radius);
+    fill(255);
+    textSize(12);
+    if (name != null && !dead)
+      text(name, pos.x, pos.y -10);
   }
+  
+  //this method make the actor shoot (if it's a hero)
   void shoot(Actor z) {
     stroke(220, 220, 0);
     strokeWeight(3);
     line(pos.x, pos.y, z.pos.x, z.pos.y);
   }
+  
+  //method to restrain the pos of the actor
   void edges() {
-    if (pos.x < 0) pos.x = width;
-    if (pos.x > width) pos.x = 0;
-    if (pos.y < 0) pos.y = height;
-    if (pos.y > height) pos.y = 0;
+    if (pos.x <= -width/2)  pos.setMag(pos.mag() * 0.999);
+    if (pos.x >= width/2)   pos.setMag(pos.mag()  * 0.999);
+    if (pos.y <= -height/2) pos.setMag(pos.mag()  * 0.999);
+    if (pos.y >= height/2)  pos.setMag(pos.mag()  * 0.999);
+    if (pos.mag() > fightingZone) pos.setMag(fightingZone * 0.999);
   }
 
+  //method to test if this actor collide with the actor a
   boolean collision(Actor a) {
-    if (PVector.dist(pos, a.pos) < 8) {
+    if (PVector.dist(pos, a.pos) < normalRadius + radius/2 + a.radius/2) {
       return true;
     }
     return false;
